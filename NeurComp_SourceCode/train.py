@@ -149,6 +149,11 @@ if __name__=='__main__':
     th.manual_seed(opt.manualSeed)
     
 #==============================================================================
+# Define a function to return a volume, it's number of scalar entries, it's ...
+# global minimum, it's global maximum, and a data class called 'dataset'
+
+
+# VolumeDataset is a function from file 'data.py'
 
     def create_data_loading():
         new_vol = volume
