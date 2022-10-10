@@ -22,6 +22,9 @@ from data import VolumeDataset
 
 from func_eval import trilinear_f_interpolation,finite_difference_trilinear_grad
 
+#==============================================================================
+# Set user-requirements
+
 if __name__=='__main__':
 
     parser = argparse.ArgumentParser()
@@ -66,49 +69,86 @@ if __name__=='__main__':
     opt = parser.parse_args()
     print(opt)
     device = 'cuda' if opt.cuda else 'cpu'
+    
+#==============================================================================
+# Load volume from path to volumetric data set, convert to Torch tensor
 
-    # volume
     np_volume = np.load(opt.volume).astype(np.float32)
     volume = th.from_numpy(np_volume)
     print('volume exts',th.min(volume),th.max(volume))
+    
+#==============================================================================
+# Compute the number of scalar entries in the input volume
+# Compute the maximum and minimum entries and normalise the input volume
 
     vol_res = th.prod(th.tensor([val for val in volume.shape])).item()
 
     raw_min = th.tensor([th.min(volume)],dtype=volume.dtype)
     raw_max = th.tensor([th.max(volume)],dtype=volume.dtype)
     volume = 2.0*((volume-raw_min)/(raw_max-raw_min)-0.5)
+    
+#==============================================================================
+# Compute the number of neurons from the user-specified compression ratio
 
     opt.neurons = compute_num_neurons(opt,int(vol_res/opt.compression_ratio))
+    
+#==============================================================================
+# Define the overall network structure 
+    
     opt.layers = []
+    
     for idx in range(opt.n_layers):
         opt.layers.append(opt.neurons)
-    #
+    
+#==============================================================================
+# Build the network and tell the model that it is about to be trained
 
-    # network
     net = FieldNet(opt)
+    
     if opt.cuda:
         net.cuda()
+        
     net.train()
     print(net)
 
-    # optimization
+#==============================================================================
+# Set the optimiser to Adam
+
     optimizer = optim.Adam(net.parameters(), lr=opt.lr, betas=(0.9, 0.999))
 
+#==============================================================================
+# Create a criterion that measures the mean squared error (default)
+
     criterion = nn.MSELoss()
+    
     if opt.cuda:
         criterion.cuda()
+        
+#==============================================================================
+# Iterate through the network and count the number of trainable parameters
+
+# numel() returns the number of elements in the input tensor
 
     num_net_params = 0
     for layer in net.parameters():
-        num_net_params += layer.numel()
+        num_net_params += layer.numel() 
+        
     print('number of network parameters:',num_net_params,'volume resolution:',volume.shape)
-    print('compression ratio:',th.prod(th.tensor([val for val in volume.shape])).item()/num_net_params)
-    compression_ratio = th.prod(th.tensor([val for val in volume.shape])).item()/num_net_params
-    vol_res = th.prod(th.tensor([val for val in volume.shape])).item()
+    
+#==============================================================================
+# Calculate the true compression ratio from input volume and parameters
+
+    compression_ratio = vol_res/num_net_params
+    print('compression ratio:',compression_ratio)
+    
+#==============================================================================
+# Set the seed for generating random numbers (in PyTorch)
 
     opt.manualSeed = random.randint(1, 10000)  # fix seed
     random.seed(opt.manualSeed)
     th.manual_seed(opt.manualSeed)
+    
+#==============================================================================
 
     def create_data_loading():
         new_vol = volume
