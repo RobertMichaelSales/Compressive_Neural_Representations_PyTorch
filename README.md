@@ -1,2 +1,2 @@
 # Compressive_Neural_Representations
- A copy of the orginal "Compressive Neural Representations" repository: github.com/matthewberger/neurcomp.
+A modified copy of the orginal code from "Compressive Neural Representations" repository [Here](https://github.com/matthewberger/neurcomp).
