@@ -218,36 +218,92 @@ if __name__=='__main__':
                 raw_positions = raw_positions.cuda()
                 positions = positions.cuda()
             
-            #==================================================================
-            # Flatten positions into a long list (tensor) of size [x,3]
-            # Where 'x' is equal to (batch_size * oversample)
-            # The '.view' function is essentially 'np.reshape()'.
-            
+        #======================================================================
+        # Flatten positions into a long list (tensor) of size [x,3]  Where 'x' 
+        # is equal to (batch_size * oversample) The '.view' function is 
+        # essentially the same as 'np.reshape()'.
+        
             raw_positions = raw_positions.view(-1,3)
             positions = positions.view(-1,3)
+            
+        #======================================================================
+        # If gradient regularisation is not zero, or every 100 batches ->
             
             if opt.grad_lambda > 0 or bdx%100==0:
                 positions.requires_grad = True
 
-            # --- in practice, since we only sample values at grid points, this is not really performing interpolation; but, the option is there...
-            field = trilinear_f_interpolation(raw_positions,v,global_min_bb,global_max_bb,v_res)
+        #======================================================================
+        # Trilinear interpolation pproximates the value of a function at an 
+        # intermediate point within the local axial rectangular prism linearly,
+        # using function data on the lattice points.
+        
+        # Note: in practice, since we only sample values at grid points, this 
+        # is not really performing interpolation; but, the option is there.
+            
+            field = trilinear_f_interpolation(raw_positions,
+                                              v,
+                                              global_min_bb,
+                                              global_max_bb,
+                                              v_res)
 
-            # predicted volume
+        #======================================================================
+        # (Re)set the gradient of all the network parameters to zero, then make
+        # a prediction of the volume for the current batch positions.
+    
             net.zero_grad()
             predicted_vol = net(positions)
             predicted_vol = predicted_vol.squeeze(-1)
 
+        #======================================================================
+        # If gradient regularisation is being used -> 
+            
             if opt.grad_lambda > 0:
-                target_grad = finite_difference_trilinear_grad(raw_positions,v,global_min_bb,global_max_bb,v_res,scale=dataset.scales)
+            
+            #==================================================================
+            # Compute the target gradients at each of the raw positions in the 
+            # current batch.
+                
+                target_grad = finite_difference_trilinear_grad(raw_positions,
+                                                               v,
+                                                               global_min_bb,
+                                                               global_max_bb,
+                                                               v_res,
+                                                               scale=dataset.scales)
+            
+            #==================================================================
+            # Create a tensor of 'ones' the same shape as 'predicted_vol'
+                
                 ones = th.ones_like(predicted_vol)
-                vol_grad = th.autograd.grad(outputs=predicted_vol, inputs=positions, grad_outputs=ones, retain_graph=True, create_graph=True, allow_unused=False)[0]
+            
+            #==================================================================
+            # The function 'tf.autograd.grad' computes and returns the sum of
+            # gradients of outputs with respect to the inputs.
+            
+                vol_grad = th.autograd.grad(outputs=predicted_vol,
+                                            inputs=positions,
+                                            grad_outputs=ones,
+                                            retain_graph=True, 
+                                            create_graph=True, 
+                                            allow_unused=False)[0]
+                
+            #==================================================================
+            # Compute the loss (mean squared error) of the gradient
+                
                 grad_loss = criterion(vol_grad,target_grad)
-            #
-
+            
+        #======================================================================
+        # Calculate the number of times the entire volume has been swept across
             n_prior_volume_passes = int(n_seen/vol_res)
 
+        #======================================================================
+        # Calculate the loss (mean squared error) of the field
             vol_loss = criterion(predicted_vol,field)
+            
+        #======================================================================
+        # Calculate the number grid points/elements that have been swept across
             n_seen += field.view(-1).shape[0]
+
+
 
             if bdx%100==0:
                 if opt.grad_lambda == 0:
