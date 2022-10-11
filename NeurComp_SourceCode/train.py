@@ -259,7 +259,6 @@ if __name__=='__main__':
             
             if opt.grad_lambda > 0:
             
-            #==================================================================
             # Compute the target gradients at each of the raw positions in the 
             # current batch.
                 
@@ -270,12 +269,10 @@ if __name__=='__main__':
                                                                v_res,
                                                                scale=dataset.scales)
             
-            #==================================================================
             # Create a tensor of 'ones' the same shape as 'predicted_vol'
                 
                 ones = th.ones_like(predicted_vol)
             
-            #==================================================================
             # The function 'tf.autograd.grad' computes and returns the sum of
             # gradients of outputs with respect to the inputs.
             
@@ -286,7 +283,6 @@ if __name__=='__main__':
                                             create_graph=True, 
                                             allow_unused=False)[0]
                 
-            #==================================================================
             # Compute the loss (mean squared error) of the gradient
                 
                 grad_loss = criterion(vol_grad,target_grad)
@@ -303,47 +299,108 @@ if __name__=='__main__':
         # Calculate the number grid points/elements that have been swept across
             n_seen += field.view(-1).shape[0]
 
-
+        #======================================================================
+        # Every 100 batches ->
 
             if bdx%100==0:
-                if opt.grad_lambda == 0:
-                    target_grad = finite_difference_trilinear_grad(raw_positions,v,global_min_bb,global_max_bb,v_res,scale=dataset.scales)
-                    ones = th.ones_like(predicted_vol)
-                    vol_grad = th.autograd.grad(outputs=predicted_vol, inputs=positions, grad_outputs=ones, retain_graph=True, create_graph=True, allow_unused=False)[0]
-                    grad_loss = criterion(vol_grad,target_grad)
-                #
+                
+            # If gradient regularisation is NOT being used ->
 
+                if opt.grad_lambda == 0:
+                    
+                # Compute the target gradients at each of the raw positions in 
+                # the current batch.
+                    
+                    target_grad = finite_difference_trilinear_grad(raw_positions,
+                                                                   v,
+                                                                   global_min_bb,
+                                                                   global_max_bb,
+                                                                   v_res,
+                                                                   scale=dataset.scales)
+                
+                # Create a tensor of 'ones' the same shape as 'predicted_vol'
+                
+                    ones = th.ones_like(predicted_vol)
+                
+                # The function 'tf.autograd.grad' computes and returns the sum 
+                # of gradients of outputs with respect to the inputs.
+                
+                    vol_grad = th.autograd.grad(outputs=predicted_vol, 
+                                                inputs=positions,
+                                                grad_outputs=ones, 
+                                                retain_graph=True, 
+                                                create_graph=True, 
+                                                allow_unused=False)[0]
+                    
+                    
+                # Compute the loss (mean squared error) of the gradient
+
+                    grad_loss = criterion(vol_grad,target_grad)
+                    
+            #==================================================================                    
+            # Print current training information
+            
                 tock = time.time()
                 print('loss[',(n_seen/vol_res),n_iter,']:',vol_loss.item(),'time:',(tock-tick))
                 print('grad loss',grad_loss.item(),'norms',th.norm(target_grad).item(),th.norm(vol_grad).item())
                 tick = tock
-            #
-
+            
+        #======================================================================
+        # Compute the full loss (using volume loss and gradient loss if using
+        # gradient regularisation)    
+        
             full_loss = vol_loss
+            
             if opt.grad_lambda > 0:
                 full_loss += opt.grad_lambda*grad_loss
+                
+        #======================================================================
+        # The '.backward' function computes the gradient of the loss tensor wrt
+        # graph 'leaves'. The graph is differentiated using the chain rule. The
+        # function essentially performs backpropagation.
+        
             full_loss.backward()
+        
+        # Perform a single optimisation step
+        
             optimizer.step()
+        
+        # Append the full loss to a list for storage
 
             all_losses.append(vol_loss.item())
+            
+        #======================================================================
+        # Calculate the number of times the entire volume has been swept across
 
             n_current_volume_passes = int(n_seen/vol_res)
+            
+        # Decay the learning rate after opt.pass_decay number of passes/epochs
+            
             if n_prior_volume_passes != n_current_volume_passes and (n_current_volume_passes+1)%opt.pass_decay==0:
+                
                 print('------ learning rate decay ------',n_current_volume_passes)
+                
                 for param_group in optimizer.param_groups:
+                
                     param_group['lr'] *= opt.lr_decay
-                #
-            #
 
+        #======================================================================
+        # If the desired number of passes (epochs) have been completed -> break
+    
             if (n_current_volume_passes+1)==opt.n_passes:
                 break
-        #
+
+    #==========================================================================
+    # If the desired number of passes (epochs) have been completed -> break    
 
         if (n_current_volume_passes+1)==opt.n_passes:
             break
+        
+    # Stop the timer
 
         epoch_tock = time.time()
-    #
+    
+    # Stop the timer
 
     last_tock = time.time()
 
