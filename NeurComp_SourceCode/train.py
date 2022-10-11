@@ -152,13 +152,14 @@ if __name__=='__main__':
 # Define a function to return a volume, it's number of scalar entries, it's ...
 # global minimum, it's global maximum, and a data class called 'dataset'
 
-
 # VolumeDataset is a function from file 'data.py'
 
     def create_data_loading():
+        
         new_vol = volume
         v_res = new_vol.shape[0]*new_vol.shape[1]*new_vol.shape[2]
         dataset = VolumeDataset(new_vol,opt.oversample)
+        
         if opt.cuda:
             global_min_bb = dataset.min_bb.cuda()
             global_max_bb = dataset.max_bb.cuda()
@@ -172,30 +173,59 @@ if __name__=='__main__':
             v = new_vol
         #
         return v,v_res,global_min_bb,global_max_bb,dataset
-    #
+
+#==============================================================================
+# Set counters to zero, start the timer 
 
     n_seen,n_iter = 0,0
     tick = time.time()
     first_tick = time.time()
+    
+#==============================================================================
+# Run the function declared above
 
     v,v_res,global_min_bb,global_max_bb,dataset = create_data_loading()
-    data_loader = DataLoader(dataset, batch_size=opt.batchSize, shuffle=True, num_workers=int(opt.num_workers))
+    
+#==============================================================================
+# From PyTorch documentations: The 'DataLoader' function combines a dataset and
+# a sampler, and provides an iterable over the given dataset. 
+
+    data_loader = DataLoader(dataset, 
+                             batch_size=opt.batchSize, 
+                             shuffle=True, 
+                             num_workers=int(opt.num_workers))
+    
+#==============================================================================
+# Enter into a while loop for training
 
     while True:
         all_losses = []
         epoch_tick = time.time()
 
+    #==========================================================================
+    # Variable 'bdx' is batch number and 'data' is a list of two tensors. 
+    # The 1st tensor is of size [batch_size,oversample,input_dimension] 
+    # The 2nd tensor is of size [batch_size,oversample,input_dimension] 
+    # The elements are for 'raw_positions' and 'positions' respectively    
+    
         for bdx, data in enumerate(data_loader):
+            
             n_iter+=1
 
             raw_positions, positions = data
+            
             if opt.cuda:
                 raw_positions = raw_positions.cuda()
                 positions = positions.cuda()
-            #
-
+            
+            #==================================================================
+            # Flatten positions into a long list (tensor) of size [x,3]
+            # Where 'x' is equal to (batch_size * oversample)
+            # The '.view' function is essentially 'np.reshape()'.
+            
             raw_positions = raw_positions.view(-1,3)
             positions = positions.view(-1,3)
+            
             if opt.grad_lambda > 0 or bdx%100==0:
                 positions.requires_grad = True
 
