@@ -404,9 +404,20 @@ if __name__=='__main__':
 
     last_tock = time.time()
 
+
+#==============================================================================
+# If debugging mode -> run custom function 'tiled_net_out' from file 'utils.py'
+
     if opt.vol_debug:
+        
         tiled_net_out(dataset, net, opt.cuda, gt_vol=volume, evaluate=True, write_vols=True)
+        
     th.save(net.state_dict(), opt.network)
+    
+#==============================================================================
+# Calculate the runtine
+
+# Save the configuration as a dictionary in a .json file config file
 
     total_time = last_tock-first_tick
     config = {}
@@ -426,4 +437,5 @@ if __name__=='__main__':
     config['time'] = total_time
 
     json.dump(config, open(opt.config,'w'))
-#
+
+#==============================================================================
