@@ -5,4 +5,6 @@ Original Authors: [Yuzhe Lu](), [Kairong Jiang](), [Joshua A. Levine](https://ja
 
 ## To do:
 - [x] Upload files
-- [ ] Test and comment source code
+- [ ] Add comments to all files within NeurComp/SourceCode
+- [ ] Compress a test volume 
+- [ ] Validate the results of the test compression against the original paper
