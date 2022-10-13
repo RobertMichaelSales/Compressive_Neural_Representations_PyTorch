@@ -22,11 +22,12 @@ from data import VolumeDataset
 
 from func_eval import trilinear_f_interpolation,finite_difference_trilinear_grad
 
-#==============================================================================
-# Set user-requirements
+
+
 
 if __name__=='__main__':
-
+    
+    # Set user-requirements
     parser = argparse.ArgumentParser()
     parser.add_argument('--volume', required=True, help='path to volumetric dataset')
 
@@ -53,7 +54,7 @@ if __name__=='__main__':
     parser.add_argument('--network', default='thenet.pth', help='filename to write the network to, default=thenet.pth')
     parser.add_argument('--config', default='thenet.json', help='configuration file containing network parameters, other stuff, default=thenet.json')
 
-    # booleans and their defaults
+    # Set booleans and their defaults
     parser.add_argument('--cuda', dest='cuda', action='store_true', help='enables cuda')
     parser.add_argument('--no-cuda', dest='cuda', action='store_false', help='disables cuda')
     parser.set_defaults(cuda=False)
@@ -70,19 +71,17 @@ if __name__=='__main__':
     print(opt)
     device = 'cuda' if opt.cuda else 'cpu'
     
-#==============================================================================
-# Load volume from path to volumetric data set, convert to Torch tensor
 
+    # Load volume from path to volumetric data set, convert to Torch tensor
     np_volume = np.load(opt.volume).astype(np.float32)
     volume = th.from_numpy(np_volume)
     print('volume exts',th.min(volume),th.max(volume))
     
-#==============================================================================
-# Compute the number of scalar entries in the input volume
-# Compute the maximum and minimum entries and normalise the input volume
 
+    # Compute the number of scalar entries in the input volume
     vol_res = th.prod(th.tensor([val for val in volume.shape])).item()
-
+    
+    # Compute the maximum and minimum entries and normalise the input volume
     raw_min = th.tensor([th.min(volume)],dtype=volume.dtype)
     raw_max = th.tensor([th.max(volume)],dtype=volume.dtype)
     volume = 2.0*((volume-raw_min)/(raw_max-raw_min)-0.5)
@@ -378,8 +377,7 @@ if __name__=='__main__':
     #==========================================================================
     # If the desired number of passes (epochs) have been completed -> break    
 
-        if (n_current_volume_passes+1)==opt.n_passes:
-            break
+        if (n_current_volume_passes+1)==opt.n_passes: break
         
         # Stop the timer
         epoch_tock = time.time()
