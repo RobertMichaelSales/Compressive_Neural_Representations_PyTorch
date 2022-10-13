@@ -258,10 +258,9 @@ if __name__=='__main__':
         # If gradient regularisation is being used -> 
             
             if opt.grad_lambda > 0:
-            
-            # Compute the target gradients at each of the raw positions in the 
-            # current batch.
                 
+                # Compute the target gradients at each of the raw positions in
+                # the current batch.                
                 target_grad = finite_difference_trilinear_grad(raw_positions,
                                                                v,
                                                                global_min_bb,
@@ -269,13 +268,11 @@ if __name__=='__main__':
                                                                v_res,
                                                                scale=dataset.scales)
             
-            # Create a tensor of 'ones' the same shape as 'predicted_vol'
-                
+                # Create a tensor of 'ones' the same shape as 'predicted_vol'                
                 ones = th.ones_like(predicted_vol)
             
-            # The function 'tf.autograd.grad' computes and returns the sum of
-            # gradients of outputs with respect to the inputs.
-            
+                # The function 'tf.autograd.grad' computes and returns the sum 
+                # of gradients of outputs with respect to the inputs.            
                 vol_grad = th.autograd.grad(outputs=predicted_vol,
                                             inputs=positions,
                                             grad_outputs=ones,
@@ -283,8 +280,7 @@ if __name__=='__main__':
                                             create_graph=True, 
                                             allow_unused=False)[0]
                 
-            # Compute the loss (mean squared error) of the gradient
-                
+                # Compute the loss (mean squared error) of the gradient
                 grad_loss = criterion(vol_grad,target_grad)
             
         #======================================================================
@@ -304,13 +300,11 @@ if __name__=='__main__':
 
             if bdx%100==0:
                 
-            # If gradient regularisation is NOT being used ->
-
+                # If gradient regularisation is NOT being used ->
                 if opt.grad_lambda == 0:
-                    
-                # Compute the target gradients at each of the raw positions in 
-                # the current batch.
-                    
+                        
+                    # Compute the target gradients at each of the raw positions
+                    # in the current batch.
                     target_grad = finite_difference_trilinear_grad(raw_positions,
                                                                    v,
                                                                    global_min_bb,
@@ -318,13 +312,12 @@ if __name__=='__main__':
                                                                    v_res,
                                                                    scale=dataset.scales)
                 
-                # Create a tensor of 'ones' the same shape as 'predicted_vol'
-                
+                    # Create a tensor of 'ones' the same shape as 
+                    # 'predicted_vol'
                     ones = th.ones_like(predicted_vol)
-                
-                # The function 'tf.autograd.grad' computes and returns the sum 
-                # of gradients of outputs with respect to the inputs.
-                
+                    
+                    # The function 'tf.autograd.grad' computes and returns the
+                    # sum of gradients of outputs with respect to the inputs.
                     vol_grad = th.autograd.grad(outputs=predicted_vol, 
                                                 inputs=positions,
                                                 grad_outputs=ones, 
@@ -332,9 +325,7 @@ if __name__=='__main__':
                                                 create_graph=True, 
                                                 allow_unused=False)[0]
                     
-                    
-                # Compute the loss (mean squared error) of the gradient
-
+                    # Compute the loss (mean squared error) of the gradient
                     grad_loss = criterion(vol_grad,target_grad)
                     
             #==================================================================                    
@@ -361,12 +352,10 @@ if __name__=='__main__':
         
             full_loss.backward()
         
-        # Perform a single optimisation step
-        
+            # Perform a single optimisation step
             optimizer.step()
         
-        # Append the full loss to a list for storage
-
+            # Append the full loss to a list for storage
             all_losses.append(vol_loss.item())
             
         #======================================================================
@@ -374,15 +363,11 @@ if __name__=='__main__':
 
             n_current_volume_passes = int(n_seen/vol_res)
             
-        # Decay the learning rate after opt.pass_decay number of passes/epochs
-            
+            # Decay the learning rate after opt.pass_decay number of passes/epochs            
             if n_prior_volume_passes != n_current_volume_passes and (n_current_volume_passes+1)%opt.pass_decay==0:
                 
                 print('------ learning rate decay ------',n_current_volume_passes)
-                
-                for param_group in optimizer.param_groups:
-                
-                    param_group['lr'] *= opt.lr_decay
+                for param_group in optimizer.param_groups: param_group['lr'] *= opt.lr_decay
 
         #======================================================================
         # If the desired number of passes (epochs) have been completed -> break
@@ -396,29 +381,24 @@ if __name__=='__main__':
         if (n_current_volume_passes+1)==opt.n_passes:
             break
         
-    # Stop the timer
-
+        # Stop the timer
         epoch_tock = time.time()
     
     # Stop the timer
-
     last_tock = time.time()
 
 
 #==============================================================================
 # If debugging mode -> run custom function 'tiled_net_out' from file 'utils.py'
 
-    if opt.vol_debug:
-        
-        tiled_net_out(dataset, net, opt.cuda, gt_vol=volume, evaluate=True, write_vols=True)
+    if opt.vol_debug: tiled_net_out(dataset, net, opt.cuda, gt_vol=volume, evaluate=True, write_vols=True)
         
     th.save(net.state_dict(), opt.network)
     
 #==============================================================================
 # Calculate the runtine
 
-# Save the configuration as a dictionary in a .json file config file
-
+    # Save the configuration as a dictionary in a .json file config file
     total_time = last_tock-first_tick
     config = {}
     config['grad_lambda'] = opt.grad_lambda
