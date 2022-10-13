@@ -3,7 +3,6 @@ A modified copy of the orginal code from "Compressive Neural Representations" re
 
 Original Authors: [Yuzhe Lu](), [Kairong Jiang](), [Joshua A. Levine](https://jalevine.bitbucket.io/), [Matthew Berger](https://matthewberger.github.io/).
 
-
 ## To do:
-- [ ] Upload files
-- [ ] Testing
+- [x] Upload files
+- [ ] Test and comment source code
