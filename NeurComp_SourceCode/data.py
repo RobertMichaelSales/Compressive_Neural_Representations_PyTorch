@@ -7,6 +7,7 @@ import sys
 import torch as th
 from torch.utils.data.dataset import Dataset
 
+#==============================================================================
 class VolumeDataset(Dataset):
     
     def __init__(self,volume,oversample=16):
@@ -59,34 +60,57 @@ class VolumeDataset(Dataset):
         # Make note of the user's requirement for oversampling
         self.oversample = oversample
 
+    #==========================================================================
     def tile_sampling(self, sub_min_bb, sub_max_bb, res=None, normalize=True):
-        if res is None:
+        
+        # If 'res' is 'None', then set the res(olution), i.e. to [150,150,150].
+        # However, self.tile_res is never actually declared        
+        if res is None: 
             res = th.tensor([self.tile_res,self.tile_res,self.tile_res],dtype=th.int)
+            
+        # Create a tensor of size [150,150,150,3] for the x,y and z coordinates 
+        # at each point in the input field
         positional_data = th.zeros(res[0],res[1],res[2],3)
 
+        # 'start' = tensor([0.,0.,0.]) or tensor([0.,0.,0.])       (norm=False)
+        # 'end'   = tensor([1.,1.,1.]) or tensor([149.,149.,149.]) (norm=False)      
         start = sub_min_bb / (self.max_bb-self.min_bb) if normalize else sub_min_bb
         end = sub_max_bb / (self.max_bb-self.min_bb) if normalize else sub_max_bb
+        
+        # Fill with non-normalised or normalised positional (coordinate) data:
+        # i.e. positional_data[x][y][z] = tensor([x,y,z])
+        # i.e. positional_data[x][y][z] = tensor([x,y,z]) normalised to ->[0,1]
         positional_data[:,:,:,0] = th.linspace(start[0],end[0],res[0],dtype=th.float).view(res[0],1,1)
         positional_data[:,:,:,1] = th.linspace(start[1],end[1],res[1],dtype=th.float).view(1,res[1],1)
         positional_data[:,:,:,2] = th.linspace(start[2],end[2],res[2],dtype=th.float).view(1,1,res[2])
 
+        # Redistribute the normalised data from [0,1] to [-1,1]
         return 2.0*positional_data - 1.0 if normalize else positional_data
-    #
 
+
+    #==========================================================================
     def uniform_sampling(self,n_samples=None):
+        
+        # If 'n_samples' is 'None' then use the self defined number of samples.
+        # self.n_samples is however, not specified anywhere else in the code
         if n_samples is None:
             n_samples = self.n_samples
+        
+        # Returns 'n_samples' randomly sampled position coordinates from within
+        # the input field coordinates.        
         return self.pos_eps + self.min_bb.unsqueeze(0) + th.rand(n_samples,3)*self.diag_eps.unsqueeze(0)
-    #
-
+    
+    #==========================================================================
+    # Customise the built-in len() function
     def __len__(self):
         return self.n_voxels
-    #
-
+    
+    #==========================================================================
+    # Customise the built-in getitem() function
     def __getitem__(self, index):
         random_positions = self.full_tiling[th.randint(self.actual_voxels,(self.oversample,))]
         normalized_positions = 2.0 * ( (random_positions - self.min_bb.unsqueeze(0)) / (self.max_bb-self.min_bb).unsqueeze(0) ) - 1.0
         normalized_positions = self.scales.unsqueeze(0)*normalized_positions
         return random_positions, normalized_positions
-    #
-#
+
+#==============================================================================
