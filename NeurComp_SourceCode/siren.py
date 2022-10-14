@@ -5,6 +5,8 @@ import torch.nn as nn
 import numpy as np
 
 #==============================================================================
+# Defines a class for 'Sine Layer' objects
+
 class SineLayer(nn.Module):
     
     def __init__(self, in_features, out_features, bias=True, is_first=False, omega_0=30):
@@ -24,7 +26,7 @@ class SineLayer(nn.Module):
         self.init_weights()
 
     #==========================================================================
-    # Defines a function to randomly initialise 
+    # Defines a function to randomly initialise the layer weights
 
     def init_weights(self):
         
@@ -40,12 +42,13 @@ class SineLayer(nn.Module):
                                              np.sqrt(6 / self.in_features) / self.omega_0)
     
     #==========================================================================
-    # A function that performs forward propagation 
+    # Defines a function that performs forward propagation of an input vector
     
     def forward(self, input):
         return th.sin(self.omega_0 * self.linear(input))
     
-
+#==============================================================================
+# Defines a class for combining 'Sine Layers' using residual skip connections
 
 class ResidualSineLayer(nn.Module):
     def __init__(self, features, bias=True, ave_first=False, ave_second=False, omega_0=30):
@@ -60,59 +63,99 @@ class ResidualSineLayer(nn.Module):
         self.weight_2 = .5 if ave_second else 1
 
         self.init_weights()
-    #
+    
+    
+    #==========================================================================
+    # Defines a function to randomly initialise the layer weights
 
     def init_weights(self):
+        
+        # Disable gradient calculation to be able to initialise layer weights
         with th.no_grad():
+        
+            # Set the weights randomly between specified limits
             self.linear_1.weight.uniform_(-np.sqrt(6 / self.features) / self.omega_0, 
                                            np.sqrt(6 / self.features) / self.omega_0)
+            
             self.linear_2.weight.uniform_(-np.sqrt(6 / self.features) / self.omega_0, 
                                            np.sqrt(6 / self.features) / self.omega_0)
-        #
-    #
+
+    #==========================================================================
+    # Defines a function that performs forward propagation of an input vector
 
     def forward(self, input):
+        
         sine_1 = th.sin(self.omega_0 * self.linear_1(self.weight_1*input))
         sine_2 = th.sin(self.omega_0 * self.linear_2(sine_1))
+        
         return self.weight_2*(input+sine_2)
-    #
-#
+    
+#==============================================================================
+# Defines a function that computes the fewest neurons per layer, for a specific 
+# network setup, that achieves the desired target compression ratio.
 
 def compute_num_neurons(opt,target_size):
-    # relevant options
-    d_in = opt.d_in
-    d_out = opt.d_out
-
+    
+    # Make note of the input and output dimensions
+    d_in = opt.d_in                                         # 3 (3D coordinate)
+    d_out = opt.d_out                                       # 1 (Scalar)
+    
+    #==========================================================================
+    # Defines a function to calculate the number of total neurons in a network, 
+    # given the number of layers, the neurons per layer, and other net options
+    
     def network_size(neurons):
+        
+        # Construct a list containing all the layer dimensions / neurons
         layers = [d_in]
         layers.extend([neurons]*opt.n_layers)
         layers.append(d_out)
+        
+        # Make note of the total number of trainable layers
         n_layers = len(layers)-1
 
+        # Set the number of total parameters to zero
         n_params = 0
+        
+        # Iterate through the list containing all the layer dimensions
         for ndx in np.arange(n_layers):
+            
+            # Retrieve the current layer's input and output dimensions            
             layer_in = layers[ndx]
             layer_out = layers[ndx+1]
+
+            # Compute the dimension of the intermediate residual layer
             og_layer_in = max(layer_in,layer_out)
 
-            if ndx==0 or ndx==(n_layers-1):
+            # If the first or last layers ->
+            if ndx==0 or ndx==(n_layers-1): 
+                
+                # Add the neurons (weights + biases)
                 n_params += ((layer_in+1)*layer_out)
-            #
+            
+            # For all but the first and last layers (i.e. residuals) ->
             else:
+                
+                # Check if the network is using residual layers ->
                 if opt.is_residual:
+                    
+                    # Check if the input and output dimensions are the same ->
                     is_shortcut = layer_in != layer_out
+                    
                     if is_shortcut:
-                        n_params += (layer_in*layer_out)+layer_out
-                    n_params += (layer_in*og_layer_in)+og_layer_in
-                    n_params += (og_layer_in*layer_out)+layer_out
+                        
+                        # Add the weights and biases of the first a
+                        n_params += (layer_in * layer_out) + layer_out
+                        
+                    n_params += (layer_in * og_layer_in) + og_layer_in
+                    n_params += (og_layer_in * layer_out) + layer_out
+                    
                 else:
                     n_params += ((layer_in+1)*layer_out)
-                #
-            #
-        #
 
         return n_params
-    #
+    
+    #==========================================================================
 
     min_neurons = 16
     while network_size(min_neurons) < target_size:

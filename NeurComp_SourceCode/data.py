@@ -8,7 +8,7 @@ import torch as th
 from torch.utils.data.dataset import Dataset
 
 #==============================================================================
-# A class to deal with the dataset, i.e. the input volume
+# Defines a class to deal with the dataset, i.e. the input volume, variables
 class VolumeDataset(Dataset):
     
     def __init__(self,volume,oversample=16):
@@ -62,6 +62,8 @@ class VolumeDataset(Dataset):
         self.oversample = oversample
 
     #==========================================================================
+    # Defines a function that generates coordinates for the input volume
+    
     def tile_sampling(self, sub_min_bb, sub_max_bb, res=None, normalize=True):
         
         # If 'res' is 'None', then set the res(olution), i.e. to [150,150,150].
@@ -89,6 +91,8 @@ class VolumeDataset(Dataset):
         return 2.0*positional_data - 1.0 if normalize else positional_data
 
     #==========================================================================
+    # Defines a function that returns a number of random position coordinates
+    
     def uniform_sampling(self,n_samples=None):
         
         # If 'n_samples' is 'None' then use the self defined number of samples.
@@ -101,7 +105,7 @@ class VolumeDataset(Dataset):
         return self.pos_eps + self.min_bb.unsqueeze(0) + th.rand(n_samples,3)*self.diag_eps.unsqueeze(0)
     
     #==========================================================================
-    # Customise the built-in len() function
+    # Customises the built-in len() function
     
     def __len__(self):
         
@@ -109,7 +113,7 @@ class VolumeDataset(Dataset):
         return self.n_voxels
     
     #==========================================================================
-    # Customise the built-in getitem() function
+    # Customises the built-in getitem() function
     
     def __getitem__(self, index):
         
