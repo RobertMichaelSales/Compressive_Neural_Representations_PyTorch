@@ -4,34 +4,48 @@ import torch as th
 import torch.nn as nn
 import numpy as np
 
+#==============================================================================
 class SineLayer(nn.Module):
+    
     def __init__(self, in_features, out_features, bias=True, is_first=False, omega_0=30):
+        
+        # Use 'super()' to call the __init__() function of the super-class
         super().__init__()
+        
+        # Assign values to internal variables
         self.omega_0 = omega_0
         self.is_first = is_first
-
         self.in_features = in_features
+        
+        # Define a linear layer that maps 'in_features' -> 'out_features'
         self.linear = nn.Linear(in_features, out_features, bias=bias)
 
+        # Call the 'init_weights' function to initialise layer weights
         self.init_weights()
-    #
+
+    #==========================================================================
+    # Defines a function to randomly initialise 
 
     def init_weights(self):
+        
+        # Disable gradient calculation to be able to initialise layer weights
         with th.no_grad():
+            
+            # Set the weights randomly between specified limits
             if self.is_first:
                 self.linear.weight.uniform_(-1 / self.in_features, 
                                              1 / self.in_features)      
             else:
                 self.linear.weight.uniform_(-np.sqrt(6 / self.in_features) / self.omega_0, 
                                              np.sqrt(6 / self.in_features) / self.omega_0)
-            #
-        #
-    #
-
+    
+    #==========================================================================
+    # A function that performs forward propagation 
+    
     def forward(self, input):
         return th.sin(self.omega_0 * self.linear(input))
-    #
-#
+    
+
 
 class ResidualSineLayer(nn.Module):
     def __init__(self, features, bias=True, ave_first=False, ave_second=False, omega_0=30):

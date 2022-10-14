@@ -8,6 +8,7 @@ import torch as th
 from torch.utils.data.dataset import Dataset
 
 #==============================================================================
+# A class to deal with the dataset, i.e. the input volume
 class VolumeDataset(Dataset):
     
     def __init__(self,volume,oversample=16):
@@ -87,7 +88,6 @@ class VolumeDataset(Dataset):
         # Redistribute the normalised data from [0,1] to [-1,1]
         return 2.0*positional_data - 1.0 if normalize else positional_data
 
-
     #==========================================================================
     def uniform_sampling(self,n_samples=None):
         
@@ -102,15 +102,28 @@ class VolumeDataset(Dataset):
     
     #==========================================================================
     # Customise the built-in len() function
+    
     def __len__(self):
+        
+        # Return the number of (scalars) elements in the input volume
         return self.n_voxels
     
     #==========================================================================
     # Customise the built-in getitem() function
+    
     def __getitem__(self, index):
+        
+        # Randomly choose 'oversample' number of items from 'full_tiling' taken
+        # from positions 0 -> 3375000
+        # i.e. full_tiling[1000] = tensor([0.,6.,100.])
         random_positions = self.full_tiling[th.randint(self.actual_voxels,(self.oversample,))]
+        
+        # Normalise 'random_positions'
         normalized_positions = 2.0 * ( (random_positions - self.min_bb.unsqueeze(0)) / (self.max_bb-self.min_bb).unsqueeze(0) ) - 1.0
+        
+        # Scale along each axis in case the volume is not cubic in shape
         normalized_positions = self.scales.unsqueeze(0)*normalized_positions
+        
         return random_positions, normalized_positions
 
 #==============================================================================

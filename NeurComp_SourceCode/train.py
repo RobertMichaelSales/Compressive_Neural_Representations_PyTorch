@@ -22,8 +22,7 @@ from data import VolumeDataset
 
 from func_eval import trilinear_f_interpolation,finite_difference_trilinear_grad
 
-
-
+#==============================================================================
 
 if __name__=='__main__':
     
@@ -71,7 +70,8 @@ if __name__=='__main__':
     print(opt)
     device = 'cuda' if opt.cuda else 'cpu'
     
-
+    #==========================================================================
+    
     # Load volume from path to volumetric data set, convert to Torch tensor
     np_volume = np.load(opt.volume).astype(np.float32)
     volume = th.from_numpy(np_volume)
@@ -86,77 +86,51 @@ if __name__=='__main__':
     raw_max = th.tensor([th.max(volume)],dtype=volume.dtype)
     volume = 2.0*((volume-raw_min)/(raw_max-raw_min)-0.5)
     
-#==============================================================================
-# Compute the number of neurons from the user-specified compression ratio
-
+    # Computes the number of neurons from the user-specified compression ratio
     opt.neurons = compute_num_neurons(opt,int(vol_res/opt.compression_ratio))
     
-#==============================================================================
-# Define the overall network structure 
-    
+    # Defines the overall network structure in terms of neurons per layer
     opt.layers = []
-    
-    for idx in range(opt.n_layers):
-        opt.layers.append(opt.neurons)
-    
-#==============================================================================
-# Build the network and tell the model that it is about to be trained
-
-    net = FieldNet(opt)
-    
-    if opt.cuda:
-        net.cuda()
+    for idx in range(opt.n_layers): opt.layers.append(opt.neurons)
         
+    # Builds the network and tell the model that it is about to be trained
+    net = FieldNet(opt)
+    if opt.cuda: net.cuda()
     net.train()
     print(net)
 
-#==============================================================================
-# Set the optimiser to Adam
-
+    # Sets the optimiser to Adam (with appropriate training parameters)
     optimizer = optim.Adam(net.parameters(), lr=opt.lr, betas=(0.9, 0.999))
 
-#==============================================================================
-# Create a criterion that measures the mean squared error (default)
-
+    # Create a criterion that measures the mean squared error (default)
     criterion = nn.MSELoss()
-    
-    if opt.cuda:
-        criterion.cuda()
+    if opt.cuda: criterion.cuda()
         
-#==============================================================================
-# Iterate through the network and count the number of trainable parameters
-
-# numel() returns the number of elements in the input tensor
-
+    # Iterate through the network and count the number of trainable parameters
+    # numel() returns the number of elements in the input tensor
     num_net_params = 0
-    for layer in net.parameters():
-        num_net_params += layer.numel() 
-        
+    for layer in net.parameters(): num_net_params += layer.numel() 
     print('number of network parameters:',num_net_params,'volume resolution:',volume.shape)
     
-#==============================================================================
-# Calculate the true compression ratio from input volume and parameters
-
+    # Calculate the true compression ratio from input volume and parameters
     compression_ratio = vol_res/num_net_params
     print('compression ratio:',compression_ratio)
     
-#==============================================================================
-# Set the seed for generating random numbers (in PyTorch)
-
+    # Set the seed for generating random numbers (in PyTorch)
     opt.manualSeed = random.randint(1, 10000)  # fix seed
     random.seed(opt.manualSeed)
     th.manual_seed(opt.manualSeed)
     
-#==============================================================================
-# Define a function to return a volume, it's number of scalar entries, it's ...
-# global minimum, it's global maximum, and a data class called 'dataset'
-
-# VolumeDataset is a function from file 'data.py'
+    #==========================================================================
+    # Defines a function to return a volume, it's number of scalar entries, ...
+    # it's global minimum and maximum, and a data class object called 'dataset'
 
     def create_data_loading():
         
         new_vol = volume
         v_res = new_vol.shape[0]*new_vol.shape[1]*new_vol.shape[2]
+        
+        # VolumeDataset is a function from file 'data.py'
         dataset = VolumeDataset(new_vol,opt.oversample)
         
         if opt.cuda:
@@ -164,98 +138,83 @@ if __name__=='__main__':
             global_max_bb = dataset.max_bb.cuda()
             v_res = dataset.vol_res_float.cuda()
             v = new_vol.cuda()
-        #
+        
         else:
             global_min_bb = dataset.min_bb
             global_max_bb = dataset.max_bb
             v_res = dataset.vol_res_float
             v = new_vol
-        #
+        
         return v,v_res,global_min_bb,global_max_bb,dataset
 
-#==============================================================================
-# Set counters to zero, start the timer 
-
+    #==========================================================================
+    
+    # Set counters to zero, start the timer 
     n_seen,n_iter = 0,0
     tick = time.time()
     first_tick = time.time()
     
-#==============================================================================
-# Run the function declared above
-
+    # Run the function 'create_data_loading' as defined above
     v,v_res,global_min_bb,global_max_bb,dataset = create_data_loading()
     
-#==============================================================================
-# From PyTorch documentations: The 'DataLoader' function combines a dataset and
-# a sampler, and provides an iterable over the given dataset. 
-
+    # From PyTorch documentation: The 'DataLoader' function combines a dataset 
+    # and a sampler, and provides an iterable over the given dataset. 
     data_loader = DataLoader(dataset, 
                              batch_size=opt.batchSize, 
                              shuffle=True, 
                              num_workers=int(opt.num_workers))
     
-#==============================================================================
-# Enter into a while loop for training
+    #==========================================================================
+    # Enter into a while loop for training
 
     while True:
         all_losses = []
         epoch_tick = time.time()
 
-    #==========================================================================
-    # Variable 'bdx' is batch number and 'data' is a list of two tensors. 
-    # The 1st tensor is of size [batch_size,oversample,input_dimension] 
-    # The 2nd tensor is of size [batch_size,oversample,input_dimension] 
-    # The elements are for 'raw_positions' and 'positions' respectively    
-    
+        # Variable 'bdx' is batch number and 'data' is a list of two tensors. 
+        # The 1st tensor is of size [batch_size,oversample,input_dimension] 
+        # The 2nd tensor is of size [batch_size,oversample,input_dimension] 
+        # The elements are for 'raw_positions' and 'positions' respectively    
         for bdx, data in enumerate(data_loader):
             
             n_iter+=1
-
             raw_positions, positions = data
             
             if opt.cuda:
                 raw_positions = raw_positions.cuda()
                 positions = positions.cuda()
             
-        #======================================================================
-        # Flatten positions into a long list (tensor) of size [x,3]  Where 'x' 
-        # is equal to (batch_size * oversample) The '.view' function is 
-        # essentially the same as 'np.reshape()'.
-        
+            # Flatten positions into a long list (tensor) of size [x,3]  Where 
+            # 'x' is equal to (batch_size * oversample) The '.view' function is 
+            # essentially the same as 'np.reshape()'.
             raw_positions = raw_positions.view(-1,3)
             positions = positions.view(-1,3)
             
-        #======================================================================
-        # If gradient regularisation is not zero, or every 100 batches ->
-            
-            if opt.grad_lambda > 0 or bdx%100==0:
+            # If gradient regularisation is not zero, or every 100 batches 
+            if (opt.grad_lambda>0) or (bdx%100==0): 
                 positions.requires_grad = True
 
-        #======================================================================
-        # Trilinear interpolation pproximates the value of a function at an 
-        # intermediate point within the local axial rectangular prism linearly,
-        # using function data on the lattice points.
-        
-        # Note: in practice, since we only sample values at grid points, this 
-        # is not really performing interpolation; but, the option is there.
+            # Trilinear interpolation pproximates the value of a function at an 
+            # intermediate point within the local axial rectangular prism 
+            # linearly, using function data on the lattice points.
             
+            # Note: in practice, since we only sample values at grid points, this 
+            # is not really performing interpolation; but, the option is there.            
             field = trilinear_f_interpolation(raw_positions,
                                               v,
                                               global_min_bb,
                                               global_max_bb,
                                               v_res)
 
-        #======================================================================
-        # (Re)set the gradient of all the network parameters to zero, then make
-        # a prediction of the volume for the current batch positions.
-    
+            
+            # (Re)set the gradient of all the network parameters to zero, then
+            # make a prediction of the volume for the current batch positions.        
             net.zero_grad()
             predicted_vol = net(positions)
             predicted_vol = predicted_vol.squeeze(-1)
 
-        #======================================================================
-        # If gradient regularisation is being used -> 
-            
+        
+            # If gradient regularisation is being used ->     
             if opt.grad_lambda > 0:
                 
                 # Compute the target gradients at each of the raw positions in
@@ -281,22 +240,18 @@ if __name__=='__main__':
                 
                 # Compute the loss (mean squared error) of the gradient
                 grad_loss = criterion(vol_grad,target_grad)
-            
-        #======================================================================
-        # Calculate the number of times the entire volume has been swept across
+        
+            # Calculate the number of times the entire volume has been swept 
+            # across
             n_prior_volume_passes = int(n_seen/vol_res)
 
-        #======================================================================
-        # Calculate the loss (mean squared error) of the field
+            # Calculate the loss (mean squared error) of the field
             vol_loss = criterion(predicted_vol,field)
             
-        #======================================================================
-        # Calculate the number grid points/elements that have been swept across
+            # Calculate the number grid points/elements that have been swept across
             n_seen += field.view(-1).shape[0]
 
-        #======================================================================
-        # Every 100 batches ->
-
+            # Every 100 batches ->
             if bdx%100==0:
                 
                 # If gradient regularisation is NOT being used ->
@@ -327,28 +282,22 @@ if __name__=='__main__':
                     # Compute the loss (mean squared error) of the gradient
                     grad_loss = criterion(vol_grad,target_grad)
                     
-            #==================================================================                    
-            # Print current training information
-            
+                                
+                # Print current training information            
                 tock = time.time()
                 print('loss[',(n_seen/vol_res),n_iter,']:',vol_loss.item(),'time:',(tock-tick))
                 print('grad loss',grad_loss.item(),'norms',th.norm(target_grad).item(),th.norm(vol_grad).item())
                 tick = tock
             
-        #======================================================================
-        # Compute the full loss (using volume loss and gradient loss if using
-        # gradient regularisation)    
-        
+            # Compute the full loss (using volume loss and gradient loss if 
+            # using gradient regularisation)                
             full_loss = vol_loss
             
-            if opt.grad_lambda > 0:
-                full_loss += opt.grad_lambda*grad_loss
+            if opt.grad_lambda > 0: full_loss += opt.grad_lambda*grad_loss
                 
-        #======================================================================
-        # The '.backward' function computes the gradient of the loss tensor wrt
-        # graph 'leaves'. The graph is differentiated using the chain rule. The
-        # function essentially performs backpropagation.
-        
+            # The '.backward' function computes the gradient of the loss tensor
+            # wrt graph 'leaves'. The graph is differentiated using the chain 
+            # rule. The function essentially performs backpropagation.            
             full_loss.backward()
         
             # Perform a single optimisation step
@@ -357,9 +306,7 @@ if __name__=='__main__':
             # Append the full loss to a list for storage
             all_losses.append(vol_loss.item())
             
-        #======================================================================
-        # Calculate the number of times the entire volume has been swept across
-
+            # Calculate the number of times the entire volume has been swept across
             n_current_volume_passes = int(n_seen/vol_res)
             
             # Decay the learning rate after opt.pass_decay number of passes/epochs            
@@ -368,15 +315,13 @@ if __name__=='__main__':
                 print('------ learning rate decay ------',n_current_volume_passes)
                 for param_group in optimizer.param_groups: param_group['lr'] *= opt.lr_decay
 
-        #======================================================================
-        # If the desired number of passes (epochs) have been completed -> break
+        
+            # If the desired number of passes (epochs) have been completed -> 
+            # break
     
-            if (n_current_volume_passes+1)==opt.n_passes:
-                break
+            if (n_current_volume_passes+1)==opt.n_passes: break
 
-    #==========================================================================
-    # If the desired number of passes (epochs) have been completed -> break    
-
+        # If the desired number of passes (epochs) have been completed -> break    
         if (n_current_volume_passes+1)==opt.n_passes: break
         
         # Stop the timer
@@ -385,19 +330,18 @@ if __name__=='__main__':
     # Stop the timer
     last_tock = time.time()
 
-
-#==============================================================================
-# If debugging mode -> run custom function 'tiled_net_out' from file 'utils.py'
-
+    #==========================================================================
+    # If debugging mode -> run function 'tiled_net_out' from 'utils.py'    
     if opt.vol_debug: tiled_net_out(dataset, net, opt.cuda, gt_vol=volume, evaluate=True, write_vols=True)
         
+    # Saves the network 'state_dict' dictionary and network options to disk
     th.save(net.state_dict(), opt.network)
     
-#==============================================================================
-# Calculate the runtine
-
-    # Save the configuration as a dictionary in a .json file config file
+    #==========================================================================
+    # Calculate the runtine
     total_time = last_tock-first_tick
+    
+    # Save the configuration as a dictionary in a .json file config file
     config = {}
     config['grad_lambda'] = opt.grad_lambda
     config['n_layers'] = opt.n_layers
@@ -415,5 +359,4 @@ if __name__=='__main__':
     config['time'] = total_time
 
     json.dump(config, open(opt.config,'w'))
-
 #==============================================================================
