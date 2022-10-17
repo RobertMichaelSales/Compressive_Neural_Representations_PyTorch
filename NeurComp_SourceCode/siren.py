@@ -144,70 +144,121 @@ def compute_num_neurons(opt,target_size):
                     
                     if is_shortcut:
                         
-                        # Add the weights and biases of the first a
+                        # Add the weights and biases (1/3)
                         n_params += (layer_in * layer_out) + layer_out
-                        
+                       
+                    # Add the weights and biases (2/3)    
                     n_params += (layer_in * og_layer_in) + og_layer_in
+                    
+                    # Add the weights and biases (3/3)    
                     n_params += (og_layer_in * layer_out) + layer_out
                     
                 else:
+                    # Add the weights and biases (1/1)
                     n_params += ((layer_in+1)*layer_out)
 
+        # Note: I think that the above calculation returns the wrong numbers
         return n_params
     
     #==========================================================================
 
+
+    # Set the minimum number of neurons per layer
     min_neurons = 16
+    
+    # Compare the network size is less than the target size
     while network_size(min_neurons) < target_size:
+        
+        # While True, incriment 'min_neurons' by 1
         min_neurons+=1
+        
+    # Once the network size exceeds the target size, decrement by 1 and return
     min_neurons-=1
 
-    return min_neurons
-#
+    return min_neurons()
+
+#==============================================================================
+# Defines a class for building the 'Siren' network as a PyTorch network object
 
 class FieldNet(nn.Module):
     def __init__(self, opt):
         super(FieldNet, self).__init__()
 
-        self.d_in = opt.d_in
-        self.layers = [self.d_in]
-        self.layers.extend(opt.layers)
-        self.d_out = opt.d_out
-        self.layers.append(self.d_out)
-        self.n_layers = len(self.layers)-1
-        self.w0 = opt.w0
-        self.is_residual = opt.is_residual
+        # Transfer field hyperparameters from 'opt' (options)
+        self.d_in = opt.d_in                # input dimensions
+        self.d_out = opt.d_out              # final dimensions
+        
+        self.layers = [self.d_in]           # input layer dimensions
+        self.layers.extend(opt.layers)      # inter layer dimensions
+        self.layers.append(self.d_out)      # final layer dimensions
+        
+        self.n_layers = len(self.layers)-1  # number of inter layers
+        
+        self.w0 = opt.w0                    # gradient regularisation factor
+        
+        self.is_residual = opt.is_residual  # residual connections
 
         self.net_layers = nn.ModuleList()
+        
+        # Iterate through each of the layers (dimensions) in the network
         for ndx in np.arange(self.n_layers):
+            
+            # Collect input and output layer dimensions
             layer_in = self.layers[ndx]
             layer_out = self.layers[ndx+1]
+            
+            # Check if not the final layer in the network
             if ndx != self.n_layers-1:
+                
+                # Check if not using residual skip conncections
                 if not self.is_residual:
+                    
+                    # Append a Sine layer without residual connections
                     self.net_layers.append(SineLayer(layer_in,layer_out,bias=True,is_first=ndx==0))
                     continue
-                #
-
+                
+                # Check if the first layer in the network
                 if ndx==0:
+                    
+                    # Append the first Sine layer
                     self.net_layers.append(SineLayer(layer_in,layer_out,bias=True,is_first=ndx==0))
+               
                 else:
+                    
+                    # Append a Sine layer with residual connections
                     self.net_layers.append(ResidualSineLayer(layer_in,bias=True,ave_first=ndx>1,ave_second=ndx==(self.n_layers-2)))
-                #
+            
             else:
+                
                 final_linear = nn.Linear(layer_in,layer_out)
+                
+                # Temporarily disable gradient calculation
                 with th.no_grad():
+                    
+                    # Set the weights of the final linear layer
                     final_linear.weight.uniform_(-np.sqrt(6 / (layer_in)) / 30.0, np.sqrt(6 / (layer_in)) / 30.0)
+                    
+                # Append the final layer
                 self.net_layers.append(final_linear)
-            #
-        #
-    #
+
+#==============================================================================
+# Defines a function that performs forward propagation of features/vectors
 
     def forward(self,input):
+        
+        # Set the batch size according to the input (it isn't actually used)
         batch_size = input.shape[0]
+        
+        # Set 'out' to be the input for the following iterative call
         out = input
+        
+        # Iterate through all the layers of the network
         for ndx,net_layer in enumerate(self.net_layers):
+            
+            # Forward propagate the output of the previous layer
             out = net_layer(out)
-        #
+        
+        # Return the output of the entire network forward propagation            
         return out
-    #
-#
+    
+#==============================================================================
