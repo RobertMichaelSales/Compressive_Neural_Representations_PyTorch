@@ -26,7 +26,7 @@ from func_eval import trilinear_f_interpolation,finite_difference_trilinear_grad
 
 if __name__=='__main__':
     
-    # Set user-requirements
+    # Collect arguments from the command line
     parser = argparse.ArgumentParser()
     parser.add_argument('--volume', required=True, help='path to volumetric dataset')
 
@@ -341,7 +341,7 @@ if __name__=='__main__':
     # Calculate the runtine
     total_time = last_tock-first_tick
     
-    # Save the configuration as a dictionary in a .json file config file
+    # Save the config as a dictionary in a .json file config file
     config = {}
     config['grad_lambda'] = opt.grad_lambda
     config['n_layers'] = opt.n_layers
