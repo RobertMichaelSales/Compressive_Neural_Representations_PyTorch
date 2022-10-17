@@ -175,7 +175,7 @@ def compute_num_neurons(opt,target_size):
     # Once the network size exceeds the target size, decrement by 1 and return
     min_neurons-=1
 
-    return min_neurons()
+    return min_neurons
 
 #==============================================================================
 # Defines a class for building the 'Siren' network as a PyTorch network object
