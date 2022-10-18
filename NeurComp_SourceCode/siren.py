@@ -5,7 +5,7 @@ import torch.nn as nn
 import numpy as np
 
 #==============================================================================
-# Defines a class for 'Sine Layer' objects
+# Define a class for 'Sine Layer' objects
 
 class SineLayer(nn.Module):
     
@@ -26,7 +26,7 @@ class SineLayer(nn.Module):
         self.init_weights()
 
     #==========================================================================
-    # Defines a function to randomly initialise the layer weights
+    # Define a function to randomly initialise the layer weights
 
     def init_weights(self):
         
@@ -42,13 +42,13 @@ class SineLayer(nn.Module):
                                              np.sqrt(6 / self.in_features) / self.omega_0)
     
     #==========================================================================
-    # Defines a function that performs forward propagation of an input vector
+    # Define a function that performs forward propagation of an input vector
     
     def forward(self, input):
         return th.sin(self.omega_0 * self.linear(input))
     
 #==============================================================================
-# Defines a class for combining 'Sine Layers' using residual skip connections
+# Define a class for combining 'Sine Layers' using residual skip connections
 
 class ResidualSineLayer(nn.Module):
     def __init__(self, features, bias=True, ave_first=False, ave_second=False, omega_0=30):
@@ -66,7 +66,7 @@ class ResidualSineLayer(nn.Module):
     
     
     #==========================================================================
-    # Defines a function to randomly initialise the layer weights
+    # Define a function to randomly initialise the layer weights
 
     def init_weights(self):
         
@@ -81,7 +81,7 @@ class ResidualSineLayer(nn.Module):
                                            np.sqrt(6 / self.features) / self.omega_0)
 
     #==========================================================================
-    # Defines a function that performs forward propagation of an input vector
+    # Define a function that performs forward propagation of an input vector
 
     def forward(self, input):
         
@@ -91,7 +91,7 @@ class ResidualSineLayer(nn.Module):
         return self.weight_2*(input+sine_2)
     
 #==============================================================================
-# Defines a function that computes the fewest neurons per layer, for a specific 
+# Define a function that computes the fewest neurons per layer, for a specific 
 # network setup, that achieves the desired target compression ratio.
 
 def compute_num_neurons(opt,target_size):
@@ -101,7 +101,7 @@ def compute_num_neurons(opt,target_size):
     d_out = opt.d_out                                       # 1 (Scalar)
     
     #==========================================================================
-    # Defines a function to calculate the number of total neurons in a network, 
+    # Define a function to calculate the number of total neurons in a network, 
     # given the number of layers, the neurons per layer, and other net options
     
     def network_size(neurons):
@@ -178,7 +178,7 @@ def compute_num_neurons(opt,target_size):
     return min_neurons
 
 #==============================================================================
-# Defines a class for building the 'Siren' network as a PyTorch network object
+# Define a class for building the 'Siren' network as a PyTorch network object
 
 class FieldNet(nn.Module):
     def __init__(self, opt):
@@ -242,7 +242,7 @@ class FieldNet(nn.Module):
                 self.net_layers.append(final_linear)
 
 #==============================================================================
-# Defines a function that performs forward propagation of features/vectors
+# Define a function that performs forward propagation of features/vectors
 
     def forward(self,input):
         

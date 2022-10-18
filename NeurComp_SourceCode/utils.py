@@ -7,7 +7,7 @@ import torch as th
 from pyevtk.hl import imageToVTK
 
 #==============================================================================
-# Defines a function that computes/predicts the scalar field and gradient field 
+# Define a function that computes/predicts the scalar field and gradient field 
 # using the current network weights and biases
 
 def field_and_grad_from_net(dataset, net, is_cuda, tiled_res=32):
@@ -105,7 +105,7 @@ def field_and_grad_from_net(dataset, net, is_cuda, tiled_res=32):
     return full_vol,full_grad
 
 #==============================================================================
-# Defines a function that computes/predicts the scalar field (output) using the 
+# Define a function that computes/predicts the scalar field (output) using the 
 # current network weights and biases
 
 def field_from_net(dataset, net, is_cuda, tiled_res=32, verbose=False):
@@ -177,7 +177,7 @@ def field_from_net(dataset, net, is_cuda, tiled_res=32, verbose=False):
     return full_vol
 
 #==============================================================================
-# Defines a function (...)
+# Define a function (...)
 
 def tiled_net_out(dataset, net, is_cuda, gt_vol=None, evaluate=True, write_vols=False, filename='vol'):
     

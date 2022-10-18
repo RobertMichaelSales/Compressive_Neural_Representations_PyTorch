@@ -8,7 +8,7 @@ import torch as th
 from torch.utils.data.dataset import Dataset
 
 #==============================================================================
-# Defines a class to deal with the dataset, i.e. the input volume, variables
+# Define a class to deal with the dataset, i.e. the input volume, variables
 class VolumeDataset(Dataset):
     
     def __init__(self,volume,oversample=16):
@@ -62,7 +62,7 @@ class VolumeDataset(Dataset):
         self.oversample = oversample
 
     #==========================================================================
-    # Defines a function that generates coordinates for the input volume
+    # Define a function that generates coordinates for the input volume
     
     def tile_sampling(self, sub_min_bb, sub_max_bb, res=None, normalize=True):
         
@@ -91,7 +91,7 @@ class VolumeDataset(Dataset):
         return 2.0*positional_data - 1.0 if normalize else positional_data
 
     #==========================================================================
-    # Defines a function that returns a number of random position coordinates
+    # Define a function that returns a number of random position coordinates
     
     def uniform_sampling(self,n_samples=None):
         

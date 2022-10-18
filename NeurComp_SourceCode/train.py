@@ -89,7 +89,7 @@ if __name__=='__main__':
     # Computes the number of neurons from the user-specified compression ratio
     opt.neurons = compute_num_neurons(opt,int(vol_res/opt.compression_ratio))
     
-    # Defines the overall network structure in terms of neurons per layer
+    # Define the overall network structure in terms of neurons per layer
     opt.layers = []
     for idx in range(opt.n_layers): opt.layers.append(opt.neurons)
         
@@ -122,8 +122,8 @@ if __name__=='__main__':
     th.manual_seed(opt.manualSeed)
     
     #==========================================================================
-    # Defines a function to return a volume, it's number of scalar entries, ...
-    # it's global minimum and maximum, and a data class object called 'dataset'
+    # Define a function to return a volume, it's number of scalar entries, it's
+    # global minimum and maximum, and a data class object called 'dataset'
 
     def create_data_loading():
         

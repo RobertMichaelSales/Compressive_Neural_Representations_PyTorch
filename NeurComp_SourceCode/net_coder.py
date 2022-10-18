@@ -16,24 +16,55 @@ import torch.backends.cudnn as cudnn
 
 from siren import FieldNet
 
+#==============================================================================
+# Define a function that returns a list of tensors of the network weights
+# weight_mats[0][1].cpu().shape  = torch.Size([ 68,  3])
+# weight_mats[1][1].cpu().shape  = torch.Size([ 68, 68])
+# weight_mats[-1][1].cpu().shape = torch.Size([  1, 68])
+
 def get_weight_mats(net):
+    
+    # Create a list of tuples of the form (layer_name, weight_tensor).
+    # weight_mats[0] = ('net_layers.0.linear.weight', [m by n tensor])
     weight_mats = [(name,parameters.data) for name, parameters in net.named_parameters() if re.match(r'.*.weight', name, re.I)]
+    
+    # Return a list just weights for each consecutive network layer. 
+    # The ".cpu()" call is removes tensor "device = cuda:0" for CPU operation    
     return [mat[1].cpu() for mat in weight_mats]
-#
+
+#==============================================================================
+# Define a function that returns a list of tensors of the network biases
+# bias_vecs[0][1].cpu().shape = torch.Size([68])
+# bias_vecs[1][1].cpu().shape = torch.Size([68])
+# bias_vecs[-1][1].cpu().shape = torch.Size([1])
 
 def get_bias_vecs(net):
+    
+    # Create a list of tuples of the form (layer_name, bias_vector).
+    # bias_vecs[0] = ('net_layers.0.linear.bias', [vector])
     bias_vecs = [(name,parameters.data) for name, parameters in net.named_parameters() if re.match(r'.*.bias', name, re.I)]
+    
+    # Return a list just biases for each consecutive network layer. 
+    # The ".cpu()" call is removes tensor "device = cuda:0" for CPU operation 
     return [bias[1].cpu() for bias in bias_vecs]
-#
+
+#==============================================================================
+# Define a function to perform K-means clustering for quantisation
 
 def kmeans_quantization(w,q):
     weight_feat = w.view(-1).unsqueeze(1).numpy()
     kmeans = KMeans(n_clusters=q,n_init=4).fit(weight_feat)
 
+    # The 'kmeans.cluster_centers_' returns a list of the cluster centroids
+
     return kmeans.labels_.tolist(),kmeans.cluster_centers_.reshape(q).tolist()
-#
+
+
+#==============================================================================
 
 def ints_to_bits_to_bytes(all_ints,n_bits):
+    
+    # Define a string 
     f_str = '#0'+str(n_bits+2)+'b'
     bit_string = ''.join([format(v, f_str)[2:] for v in all_ints])
     n_bytes = len(bit_string)//8
@@ -46,56 +77,78 @@ def ints_to_bits_to_bytes(all_ints,n_bits):
         the_bytes.append(int(bin_val,2))
     #
     return the_bytes,the_leftover
-#
+
+#==============================================================================
+# Define a container class (with dictionary functionality) to hold arbitrary...
+# attributes that can be dynamically changed during runtime by the user/program
 
 class SimpleMap(dict):
+    
     def __init__(self):
         pass
 
+    # The 'getattr' magic method intercepts inexistent attribute lookups. If...
+    # the object attribute does exist then '__getattr__' will not be invoked:
+    # i.e. 'getattr(obj,"name")' == 'obj["name"]' == 'obj.name'
     def __getattr__(self, attr):
         return self.get(attr)
 
+    # The 'setattr' magic method is always called when setting obj' attributes:
+    # i.e. 'setattr(obj,"name",val)' == 'obj["name"] = val' == 'obj.name = val'
     def __setattr__(self, key, value):
         self.__setitem__(key, value)
 
+    # The 'setitem' magic method is always called when assigning values to obj'
+    # attributes. The '.update' method updates the dictionary containing the...
+    # object's internal variables. This method is only called in '__setattr__'.
     def __setitem__(self, key, value):
         super(SimpleMap, self).__setitem__(key, value)
         self.__dict__.update({key: value})
-#
+
+#==============================================================================
 
 class SirenEncoder:
     def __init__(self,net,config):
         self.net = net
         self.config = config
-    #
+    
 
     def encode(self,filename,n_bits,d_in=3):
+        
+        # Default for 'n_bits' is 9 -> default for 'n_clusters' is 512
         n_clusters = int(math.pow(2,n_bits))
 
+        # Make local copies of the relevant network config
         n_layers = self.config['n_layers']
         layers = self.config['layers']
         is_residual = 1 if self.config['is_residual'] else 0
         d_out = 1
 
+        # Get a list of weight matrices and of bias vectors (from training)
         weight_mats = get_weight_mats(self.net)
         bias_vecs = get_bias_vecs(self.net)
 
+        # Open a file in 'write in binary' mode 
         file = open(filename,'wb')
-
-        # header: number of layers
+        
+        # The module 'struct' converts between Python values and C structures
+        # represented as Python bytes opjects. These byte objects are written
+        # to a file for later access.
+        
+        # -> header: number of layers (integer -> unsigned char)
         header = file.write(struct.pack('B', n_layers))
-        # header: d_in
+        # -> header: d_in (integer -> unsigned char)
         header += file.write(struct.pack('B', d_in))
-        # header: d_out
+        # -> header: d_out (integer -> unsigned char)
         header += file.write(struct.pack('B', d_out))
-        # header: is_residual
+        # -> header: is_residual (integer -> unsigned char)
         header += file.write(struct.pack('B', is_residual))
-        # header: layers
+        # -> header: layers (integer -> unsigned int)
         header += file.write(struct.pack(''.join(['I' for _ in range(len(layers))]), *layers))
-        # header: number of bits for clustering
+        # -> header: number of bits for clustering (integer -> unsigned char)
         header += file.write(struct.pack('B', n_bits))
 
-        # first layer: matrix and bias
+        # -> first layer: matrix and bias
         w_pos,b_pos = weight_mats[0].view(-1).tolist(),bias_vecs[0].view(-1).tolist()
         w_pos_format = ''.join(['f' for _ in range(len(w_pos))])
         b_pos_format = ''.join(['f' for _ in range(len(b_pos))])
