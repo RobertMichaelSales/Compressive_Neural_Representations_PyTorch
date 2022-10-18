@@ -151,13 +151,19 @@ class SimpleMap(dict):
         self.__dict__.update({key: value})
 
 #==============================================================================
-
+# Define a class for encoding the pre-trained weight matrices and bias vectors
+ 
 class SirenEncoder:
+    
     def __init__(self,net,config):
+        
+        # Assign the network and config argumens to internal variables
         self.net = net
         self.config = config
     
-
+    #==========================================================================
+    # Define a function to encode the trained weight matrices and bias vectors
+    
     def encode(self,filename,n_bits,d_in=3):
         
         # Default for 'n_bits' is 9 -> default for 'n_clusters' is 512
@@ -260,32 +266,51 @@ class SirenEncoder:
         file.close()
 
 #==============================================================================
+# Define a class for decoding the pre-trained weight matrices and bias vectors
 
 class SirenDecoder:
+    
     def __init__(self):
         pass
-    #
+    
+    #==========================================================================
+    # Define a function to encode the trained weight matrices and bias vectors
 
     def decode(self,filename):
-        #weight_mats = get_weight_mats(self.net)
-        #bias_vecs = get_bias_vecs(self.net)
-
+        
+        
+        # Open a file in 'read in binary' mode
         file = open(filename,'rb')
-
-        # header: number of layers
+        
+        #======================================================================
+        
+        # The module 'struct' converts between Python values and C structures
+        # represented as Python bytes opjects. These byte objects can be read
+        # from a file for later access.
+        
+        # -> header: number of layers (unsigned char -> integer)
         self.n_layers = struct.unpack('B', file.read(1))[0]
-        # header: d_in
+        # -> header: d_in (unsigned char -> integer)
         self.d_in = struct.unpack('B', file.read(1))[0]
-        # header: d_out
+        # -> header: d_out (unsigned char -> integer)
         self.d_out = struct.unpack('B', file.read(1))[0]
-        # header: is_residual
+        # -> header: is_residual (unsigned char -> integer)
         self.is_residual = struct.unpack('B', file.read(1))[0]
-        # header: layers
+        # -> header: layers (integer -> unsigned int)
         self.layers = struct.unpack(''.join(['I' for _ in range(self.n_layers)]), file.read(4*(self.n_layers)))
-        # header: number of bits for clustering
+        # -> header: number of bits for clustering (integer -> unsigned char)        
         self.n_bits = struct.unpack('B', file.read(1))[0]
+        
+        # Default for 'n_bits' is 9 -> default for 'n_clusters' is 512
         self.n_clusters = int(math.pow(2,self.n_bits))
         print('n bits?',self.n_bits,'n clusters?',self.n_clusters)
+
+#==============================================================================
+#==============================================================================
+#YOU GOT HERE#YOU GOT HERE#YOU GOT HERE#YOU GOT HERE#YOU GOT HERE#YOU GOT HERE# 
+#==============================================================================#==============================================================================
+#==============================================================================
+
 
         # create net from header
         opt = SimpleMap()
@@ -357,9 +382,6 @@ class SirenDecoder:
                 b_shape = parameters.data.shape
                 parameters.data = all_bs[bdx].view(b_shape)
                 bdx+=1
-            #
-        #
-
+            
         return net
-    #
-#
+#==============================================================================
