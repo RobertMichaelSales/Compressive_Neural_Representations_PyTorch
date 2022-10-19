@@ -130,7 +130,7 @@ if __name__=='__main__':
         new_vol = volume
         v_res = new_vol.shape[0]*new_vol.shape[1]*new_vol.shape[2]
         
-        # VolumeDataset is a function from file 'data.py'
+        # VolumeDataset is a function from file 'data.py' -> create data object
         dataset = VolumeDataset(new_vol,opt.oversample)
         
         if opt.cuda:

@@ -177,7 +177,9 @@ def field_from_net(dataset, net, is_cuda, tiled_res=32, verbose=False):
     return full_vol
 
 #==============================================================================
-# Define a function (...)
+# Define a function that reconstructs the input volume using trained weights...
+# and biases, computes the PSNR (peak signal-to-noise ratio) and then saves the
+#  reconstructed input volume as a .VTK file.
 
 def tiled_net_out(dataset, net, is_cuda, gt_vol=None, evaluate=True, write_vols=False, filename='vol'):
     
