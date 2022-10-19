@@ -238,7 +238,7 @@ class SirenEncoder:
             # Check if 'n_bits' is wholly divisible by 8
             if n_bits%8 != 0:
                 
-                # Encode any non-power-2 labels as 16-bit integers at the end
+                # Encode any non-power-2 labels as 4-byte integers at the end
                 mid_weight += file.write(struct.pack('I', labels[-1]))
             
             # Convert the 'bias_vec' tensor to a Python list (of size 68)
@@ -278,7 +278,6 @@ class SirenDecoder:
 
     def decode(self,filename):
         
-        
         # Open a file in 'read in binary' mode
         file = open(filename,'rb')
         
@@ -287,6 +286,9 @@ class SirenDecoder:
         # The module 'struct' converts between Python values and C structures
         # represented as Python bytes opjects. These byte objects can be read
         # from a file for later access.
+        
+        # The 'unpack' method returns a tuple, i.e. (number,), hence choosing
+        # only the [0] item from 'struct.unpack'
         
         # -> header: number of layers (unsigned char -> integer)
         self.n_layers = struct.unpack('B', file.read(1))[0]
@@ -305,15 +307,10 @@ class SirenDecoder:
         self.n_clusters = int(math.pow(2,self.n_bits))
         print('n bits?',self.n_bits,'n clusters?',self.n_clusters)
 
-#==============================================================================
-#==============================================================================
-#YOU GOT HERE#YOU GOT HERE#YOU GOT HERE#YOU GOT HERE#YOU GOT HERE#YOU GOT HERE# 
-#==============================================================================#==============================================================================
-#==============================================================================
-
-
-        # create net from header
+        # Create a container object for network parameters
         opt = SimpleMap()
+        
+        # Fill 'opt' with network parameters 
         self.d_in = 3
         opt.d_in = self.d_in
         opt.d_out = self.d_out
@@ -321,67 +318,121 @@ class SirenDecoder:
         opt.w0 = 30
         opt.n_layers = self.n_layers
         opt.layers = self.layers
-        opt.is_residual = self.is_residual==1
+        opt.is_residual = (self.is_residual==1)
 
+        # Recreate the SIREN network using the parameters in 'opt'
         net = FieldNet(opt)
+        
+        #======================================================================
 
-        # first layer: matrix and bias
+        # First layer: weight matrix and bias vector
+        # -> Specify float format to read from struct: 'ff...f'
         w_pos_format = ''.join(['f' for _ in range(self.d_in*self.layers[0])])
         b_pos_format = ''.join(['f' for _ in range(self.layers[0])])
+        # -> Unpack from the buffer (first layer)
         w_pos = th.FloatTensor(struct.unpack(w_pos_format, file.read(4*self.d_in*self.layers[0])))
         b_pos = th.FloatTensor(struct.unpack(b_pos_format, file.read(4*self.layers[0])))
 
+        # Create lists to store all of the weight matrices and bias vectors
         all_ws = [w_pos]
         all_bs = [b_pos]
+        
+        #======================================================================
 
-        # middle layers: cluster, store clusters, then map matrix indices to indices
+        # Middle layers: cluster, store clusters, map matrix indices to indices
+        # Determine the number of middle layers based on the use of resuals
         total_n_layers = 2*(self.n_layers-1) if self.is_residual==1 else self.n_layers-1
+        # Iterate through all layers
         for ldx in range(total_n_layers):
-            # weights
+            
+            # Calculate the number of weights per middle layer, i.e. (68*68)
             n_weights = self.layers[0]*self.layers[0]
+            
+            # Calculates the number of bytes used to store the weight matrix.
+            # This is the same as 'n_bytes' in 'ints_to_bits_to_bytes()'
             weight_size = (n_weights*self.n_bits)//8
-            if (n_weights*self.n_bits)%8 != 0:
-                weight_size+=1
+            
+            # Check if 'weight_size' divides 'len(bit_string)' with no leftover
+            # -> if not, incriment by 1
+            if (n_weights*self.n_bits)%8 != 0: weight_size+=1
+            
+            # Specify float format to unpack the centroid coordinates: 'ff...f'
             c_format = ''.join(['f' for _ in range(self.n_clusters)])
+            
+            # -> Unpack from the buffer (middle layers)
             centers = th.FloatTensor(struct.unpack(c_format, file.read(4*self.n_clusters)))
+            
+            # Read the next 'weight_size' (5202) number of bytes from 'file'
             inds = file.read(weight_size)
+            
+            # Convert encoded bytes in 'inds' into binary and join together
             bits = ''.join(format(byte, '0'+str(8)+'b') for byte in inds)
+            
+            # Obtain a tensor of the labels obtained via k-means clustering
             w_inds = th.LongTensor([int(bits[self.n_bits*i:self.n_bits*i+self.n_bits],2) for i in range(n_weights)])
 
+            # Check if 'n_bits' is wholly divisible by 8
             if self.n_bits%8 != 0:
+                
+                # Decode any non-power 2 labels as 4-byte integers at the end
                 next_bytes = file.read(4)
                 w_inds[-1] = struct.unpack('I', next_bytes)[0]
-            #
 
-            # bias
+            # Specify float format to unpack the bias vector: 'ff...f'
             b_format = ''.join(['f' for _ in range(self.layers[0])])
+            
+            # Read from file, unpack and obtain a tensor of the bias vector
             bias = th.FloatTensor(struct.unpack(b_format, file.read(4*self.layers[0])))
 
+            # Obtain the quantised weights using labels as keys to centroids
             w_quant = centers[w_inds]
+            
+            # Append the middle layer weight matrices and bias vectors
             all_ws.append(w_quant)
             all_bs.append(bias)
-        #
+            
+        #======================================================================
 
-        # last layer: matrix and bias
+        # Last layer: weight matrix and bias vector
+        # -> Specify float format to read from struct: 'ff...f'
         w_last_format = ''.join(['f' for _ in range(self.d_out*self.layers[-1])])
         b_last_format = ''.join(['f' for _ in range(self.d_out)])
+        # -> Unpack from the buffer (last layer)
         w_last = th.FloatTensor(struct.unpack(w_last_format, file.read(4*self.d_out*self.layers[-1])))
         b_last = th.FloatTensor(struct.unpack(b_last_format, file.read(4*self.layers[-1])))
 
+        # Append the last layer weight matrices and bias vectors
         all_ws.append(w_last)
         all_bs.append(b_last)
 
+        
         wdx,bdx=0,0
+        
+        
         for name, parameters in net.named_parameters():
+            
+            # Search for string containing '*.weight' in 'name', ignoring case,
+            # where 'name' is a string such as: 'net_layers.0.linear.weight'
             if re.match(r'.*.weight', name, re.I):
+                
+                # Obtain the shape of each consecutive weight matrix
                 w_shape = parameters.data.shape
+                # Set the network weight matrix to the stored values
                 parameters.data = all_ws[wdx].view(w_shape)
+                # Incriment 'wdx'
                 wdx+=1
-            #
+            
+            # Search for string containing '*.bias' in 'name', ignoring case,
+            # where 'name' is a string such as: 'net_layers.0.linear.bias'
             if re.match(r'.*.bias', name, re.I):
+                
+                # Obtain the shape of each consecutive bias vector
                 b_shape = parameters.data.shape
+                # Set the network bias vector to the stored values
                 parameters.data = all_bs[bdx].view(b_shape)
+                # Incriment 'bdx'
                 bdx+=1
             
+        # Return the SIREN network complete with decoded weights and biases
         return net
 #==============================================================================
