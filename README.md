@@ -9,6 +9,6 @@ Author: [Robert Sales](https://github.com/RobertMichaelSales).
 
 ## To do:
 - [x] Upload files
-- [ ] Add comments to all files within NeurComp/SourceCode
-- [ ] Compress a test volume 
+- [x] Add comments to all files within NeurComp/SourceCode
+- [x] Compress a test volume 
 - [ ] Validate the results of the test compression against the original paper
