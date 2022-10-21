@@ -1,3 +1,8 @@
+#==============================================================================
+# Original authors: Yuzhe Lu, Kairong Jiang, Joshua A. Levine, Matthew Berger.
+# Modifications by: Robert Sales (20.10.2022)
+#==============================================================================
+
 import sys
 import argparse
 import os
@@ -435,4 +440,5 @@ class SirenDecoder:
             
         # Return the SIREN network complete with decoded weights and biases
         return net
+    
 #==============================================================================

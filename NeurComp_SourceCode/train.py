@@ -1,3 +1,8 @@
+#==============================================================================
+# Original authors: Yuzhe Lu, Kairong Jiang, Joshua A. Levine, Matthew Berger.
+# Modifications by: Robert Sales (20.10.2022)
+#==============================================================================
+
 from __future__ import print_function
 import argparse
 import sys
@@ -23,6 +28,7 @@ from data import VolumeDataset
 from func_eval import trilinear_f_interpolation,finite_difference_trilinear_grad
 
 #==============================================================================
+# Define the function to be run when 'train.py' is called via terminal commands
 
 if __name__=='__main__':
     
@@ -77,7 +83,6 @@ if __name__=='__main__':
     volume = th.from_numpy(np_volume)
     print('volume exts',th.min(volume),th.max(volume))
     
-
     # Compute the number of scalar entries in the input volume
     vol_res = th.prod(th.tensor([val for val in volume.shape])).item()
     
@@ -117,7 +122,7 @@ if __name__=='__main__':
     print('compression ratio:',compression_ratio)
     
     # Set the seed for generating random numbers (in PyTorch)
-    opt.manualSeed = random.randint(1, 10000)  # fix seed
+    opt.manualSeed = random.randint(1, 10000)
     random.seed(opt.manualSeed)
     th.manual_seed(opt.manualSeed)
     
@@ -177,16 +182,21 @@ if __name__=='__main__':
         # The elements are for 'raw_positions' and 'positions' respectively    
         for bdx, data in enumerate(data_loader):
             
+            # Incriment the number of iterations by 1
             n_iter+=1
+            
+            # Unpack 'raw_positions', i.e. a tensor of indices in [0,149.0] and
+            # Unpack 'positions', i.e. the 'raw_positions' normalised to [-1,1]
+            # -> (2.0*(raw_positions/149.0)-1.0) = positions            
             raw_positions, positions = data
             
             if opt.cuda:
                 raw_positions = raw_positions.cuda()
                 positions = positions.cuda()
             
-            # Flatten positions into a long list (tensor) of size [x,3]  Where 
-            # 'x' is equal to (batch_size * oversample) The '.view' function is 
-            # essentially the same as 'np.reshape()'.
+            # Flatten the position tensors into tensors of size [x,3] where 'x'
+            # is equal to (batch_size * oversample) The '.view' function is the 
+            # same as 'np.reshape()'.
             raw_positions = raw_positions.view(-1,3)
             positions = positions.view(-1,3)
             
@@ -194,18 +204,17 @@ if __name__=='__main__':
             if (opt.grad_lambda>0) or (bdx%100==0): 
                 positions.requires_grad = True
 
-            # Trilinear interpolation pproximates the value of a function at an 
-            # intermediate point within the local axial rectangular prism 
-            # linearly, using function data on the lattice points.
+            # Trilinear interpolation approximates at an intermediate point ...
+            # within the local axial rectangular prism linearly, using function
+            # data on the lattice points.
             
-            # Note: in practice, since we only sample values at grid points, this 
+            # Note: in practice, since they sample values at grid points, this 
             # is not really performing interpolation; but, the option is there.            
             field = trilinear_f_interpolation(raw_positions,
                                               v,
                                               global_min_bb,
                                               global_max_bb,
                                               v_res)
-
             
             # (Re)set the gradient of all the network parameters to zero, then
             # make a prediction of the volume for the current batch positions.        
@@ -359,4 +368,5 @@ if __name__=='__main__':
     config['time'] = total_time
 
     json.dump(config, open(opt.config,'w'))
+    
 #==============================================================================

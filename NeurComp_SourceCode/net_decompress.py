@@ -1,3 +1,8 @@
+#==============================================================================
+# Original authors: Yuzhe Lu, Kairong Jiang, Joshua A. Levine, Matthew Berger.
+# Modifications by: Robert Sales (20.10.2022)
+#==============================================================================
+
 from __future__ import print_function
 import argparse
 import sys
@@ -18,7 +23,7 @@ from utils import tiled_net_out
 
 from data import VolumeDataset
 
-from func_eval import trilinear_f_interpolation,finite_difference_trilinear_grad
+from func_eval import trilinear_f_interpolation,finite_difference_trilinear_grad ##
 
 from siren import FieldNet, compute_num_neurons
 from net_coder import SirenDecoder
@@ -83,4 +88,5 @@ tiled_net_out(dataset,
               evaluate=True, 
               write_vols=True, 
               filename=opt.recon)
+
 #==============================================================================

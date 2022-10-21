@@ -1,3 +1,8 @@
+#==============================================================================
+# Original authors: Yuzhe Lu, Kairong Jiang, Joshua A. Levine, Matthew Berger.
+# Modifications by: Robert Sales (20.10.2022)
+#==============================================================================
+
 from __future__ import print_function
 import argparse
 import torch as th

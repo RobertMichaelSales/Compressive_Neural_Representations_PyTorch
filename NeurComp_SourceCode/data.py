@@ -1,3 +1,8 @@
+#==============================================================================
+# Original authors: Yuzhe Lu, Kairong Jiang, Joshua A. Levine, Matthew Berger.
+# Modifications by: Robert Sales (20.10.2022)
+#==============================================================================
+
 import numpy as np
 import json
 import time
@@ -8,7 +13,9 @@ import torch as th
 from torch.utils.data.dataset import Dataset
 
 #==============================================================================
-# Define a class to deal with the dataset, i.e. the input volume, variables
+# Define a class to deal with the dataset, i.e. the input volume, variables ...
+# there are some random lines of code that don't seem to have any real function
+
 class VolumeDataset(Dataset):
     
     def __init__(self,volume,oversample=16):

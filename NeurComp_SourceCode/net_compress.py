@@ -1,3 +1,8 @@
+#==============================================================================
+# Original authors: Yuzhe Lu, Kairong Jiang, Joshua A. Levine, Matthew Berger.
+# Modifications by: Robert Sales (20.10.2022)
+#==============================================================================
+
 from __future__ import print_function
 import argparse
 import sys
@@ -60,4 +65,5 @@ encoder = SirenEncoder(net, config)
 
 # Quantise the weights of the network, saving to opt.compressed (a binary file)
 encoder.encode(opt.compressed,opt.cluster_bits)
+
 #==============================================================================
