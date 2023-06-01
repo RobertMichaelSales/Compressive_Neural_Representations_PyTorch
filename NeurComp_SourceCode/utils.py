@@ -205,11 +205,7 @@ def tiled_net_out(dataset, net, is_cuda, gt_vol=None, evaluate=True, write_vols=
         diff_vol = gt_vol - full_vol
         
         # Calculate the squared maximum difference
-        sqd_max_diff = (th.max(gt_vol)-th.min(gt_vol))**2
-        
-        #=#
-        #full_vol = full_vol.cpu().transpose(1,2).transpose(0,1).transpose(1,2)
-        #=#
+        max_diff = th.max(gt_vol)-th.min(gt_vol)
         
         # Calculate the absolute difference (error)
         l1_diff = th.mean(th.abs(diff_vol))
@@ -218,7 +214,7 @@ def tiled_net_out(dataset, net, is_cuda, gt_vol=None, evaluate=True, write_vols=
         mse = th.mean(th.pow(diff_vol,2))
         
         # Calculate the peak signal to noise ratio (PSNR)
-        psnr = 10*th.log10(sqd_max_diff/th.mean(diff_vol**2))
+        psnr = -20.0*th.log10(th.sqrt(mse)/max_diff)
         
         print('PSNR:',psnr,'l1:',l1_diff,'mse:',mse,'rmse:',th.sqrt(mse))
 

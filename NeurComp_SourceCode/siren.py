@@ -199,7 +199,7 @@ class FieldNet(nn.Module):
         
         self.n_layers = len(self.layers)-1  # number of inter layers
         
-        self.w0 = opt.w0                    # gradient regularisation factor
+        self.w0 = opt.w0                    # scale for SIREN
         
         self.is_residual = opt.is_residual  # residual connections
 
@@ -219,19 +219,19 @@ class FieldNet(nn.Module):
                 if not self.is_residual:
                     
                     # Append a Sine layer without residual connections
-                    self.net_layers.append(SineLayer(layer_in,layer_out,bias=True,is_first=ndx==0))
+                    self.net_layers.append(SineLayer(layer_in,layer_out,bias=True,is_first=ndx==0,omega_0=self.w0))
                     continue
                 
                 # Check if the first layer in the network
                 if ndx==0:
                     
                     # Append the first Sine layer
-                    self.net_layers.append(SineLayer(layer_in,layer_out,bias=True,is_first=ndx==0))
+                    self.net_layers.append(SineLayer(layer_in,layer_out,bias=True,is_first=ndx==0,omega_0=self.w0))
                
                 else:
                     
                     # Append a Sine layer with residual connections
-                    self.net_layers.append(ResidualSineLayer(layer_in,bias=True,ave_first=ndx>1,ave_second=ndx==(self.n_layers-2)))
+                    self.net_layers.append(ResidualSineLayer(layer_in,bias=True,ave_first=ndx>1,ave_second=ndx==(self.n_layers-2),omega_0=self.w0))
             
             else:
                 
@@ -241,7 +241,7 @@ class FieldNet(nn.Module):
                 with th.no_grad():
                     
                     # Set the weights of the final linear layer
-                    final_linear.weight.uniform_(-np.sqrt(6 / (layer_in)) / 30.0, np.sqrt(6 / (layer_in)) / 30.0)
+                    final_linear.weight.uniform_(-np.sqrt(6 / (layer_in)) / self.w0, np.sqrt(6 / (layer_in)) / self.w0)
                     
                 # Append the final layer
                 self.net_layers.append(final_linear)

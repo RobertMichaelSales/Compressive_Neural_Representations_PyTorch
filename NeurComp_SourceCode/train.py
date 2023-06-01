@@ -42,7 +42,7 @@ if __name__=='__main__':
     parser.add_argument('--grad_lambda', type=float, default=0, help='lambda term for gradient regularization - if 0, no regularization is performed, default=0')
 
     parser.add_argument('--n_layers', type=int, default=8, help='number of layers')
-    parser.add_argument('--w0', default=30, help='scale for SIREN')
+    parser.add_argument('--w0', type=float, default=30, help='scale for SIREN')
 
     parser.add_argument('--compression_ratio', type=float, default=50, help='compression ratio')
 
@@ -321,9 +321,10 @@ if __name__=='__main__':
             # Decay the learning rate after opt.pass_decay number of passes/epochs            
             if n_prior_volume_passes != n_current_volume_passes and (n_current_volume_passes+1)%opt.pass_decay==0:
                 
-                print('------ learning rate decay ------',n_current_volume_passes)
-                for param_group in optimizer.param_groups: param_group['lr'] *= opt.lr_decay
-
+                print('------ learning rate decay ------',n_current_volume_passes,)
+                for param_group in optimizer.param_groups: 
+                    param_group['lr'] *= opt.lr_decay
+                    print('new learning rate',param_group['lr'])
         
             # If the desired number of passes (epochs) have been completed -> 
             # break
