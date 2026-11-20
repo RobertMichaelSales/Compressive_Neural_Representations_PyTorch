@@ -40,11 +40,9 @@ class SineLayer(nn.Module):
             
             # Set the weights randomly between specified limits
             if self.is_first:
-                self.linear.weight.uniform_(-1 / self.in_features, 
-                                             1 / self.in_features)      
+                self.linear.weight.uniform_(-1 / self.in_features, 1 / self.in_features)      
             else:
-                self.linear.weight.uniform_(-np.sqrt(6 / self.in_features) / self.omega_0, 
-                                             np.sqrt(6 / self.in_features) / self.omega_0)
+                self.linear.weight.uniform_(-np.sqrt(6 / self.in_features) / self.omega_0, np.sqrt(6 / self.in_features) / self.omega_0)
     
     #==========================================================================
     # Define a function that performs forward propagation of an input vector
